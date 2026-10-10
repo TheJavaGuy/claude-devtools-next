@@ -852,7 +852,10 @@ const DEFAULT_LINE_COMMENT_PREFIXES = ['//'];
  * This is a simple approach without a full parser.
  */
 export function highlightLine(line: string, language: string): React.ReactNode[] {
-  const keywords = KEYWORDS[language] || new Set();
+  // Own-property check: fence tags like "constructor" would otherwise resolve to Object.prototype members
+  const keywords = Object.prototype.hasOwnProperty.call(KEYWORDS, language)
+    ? KEYWORDS[language]
+    : new Set<string>();
 
   // If no highlighting support, return plain text as single-element array
   if (keywords.size === 0 && !['json', 'css', 'markdown'].includes(language)) {
