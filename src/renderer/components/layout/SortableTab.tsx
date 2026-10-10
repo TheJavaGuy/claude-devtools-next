@@ -62,7 +62,7 @@ export const SortableTab = ({
   const commitRename = useCallback(() => {
     const trimmed = renameInputRef.current?.value.trim() ?? '';
     if (trimmed && trimmed !== tab.label) {
-      updateTabLabel(tab.id, trimmed);
+      updateTabLabel(tab.id, trimmed, { setByUser: true });
     }
     onRenameComplete?.();
   }, [tab.label, tab.id, updateTabLabel, onRenameComplete]);

@@ -351,6 +351,8 @@ export interface SessionFileMetadata {
   /** Per-phase token breakdown */
   phaseBreakdown?: PhaseTokenBreakdown[];
   hasDisplayableContent: boolean;
+  /** Session title: last session name (agent-name/custom-title), else last ai-title */
+  customTitle?: string;
 }
 
 /**
@@ -384,6 +386,8 @@ export async function analyzeSessionFileMetadata(
   // After a UserGroup, await the first main-thread assistant message to count the AIGroup
   let awaitingAIGroup = false;
   let gitBranch: string | null = null;
+  let userTitle: string | undefined;
+  let aiTitle: string | undefined;
 
   let activityIndex = 0;
   let lastEndingIndex = -1;
@@ -409,6 +413,22 @@ export async function analyzeSessionFileMetadata(
     try {
       entry = JSON.parse(trimmed) as ChatHistoryEntry;
     } catch {
+      continue;
+    }
+
+    // Title entries are not chat entries (parseChatHistoryEntry ignores them); last one wins.
+    const record = entry as unknown as Record<string, unknown>;
+    if (record.type === 'agent-name' || record.type === 'custom-title') {
+      const value = record.type === 'agent-name' ? record.agentName : record.customTitle;
+      if (typeof value === 'string' && value.trim()) {
+        userTitle = value.trim();
+      }
+      continue;
+    }
+    if (record.type === 'ai-title') {
+      if (typeof record.aiTitle === 'string' && record.aiTitle.trim()) {
+        aiTitle = record.aiTitle.trim();
+      }
       continue;
     }
 
@@ -644,5 +664,6 @@ export async function analyzeSessionFileMetadata(
     compactionCount: compactionPhases.length > 0 ? compactionPhases.length : undefined,
     phaseBreakdown,
     hasDisplayableContent,
+    customTitle: userTitle ?? aiTitle,
   };
 }

@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '@renderer/api';
 import { useStore } from '@renderer/store';
 import { formatModifierShortcut } from '@renderer/utils/keyboardUtils';
+import { getSessionTitle } from '@renderer/utils/sessionTitle';
 import { createLogger } from '@shared/utils/logger';
 import { isSessionIdFragment, isUUID } from '@shared/utils/sessionIdValidator';
 import { formatDistanceToNow } from 'date-fns';
@@ -726,7 +727,7 @@ export const CommandPalette = (): React.JSX.Element | null => {
                     sessionIdMatch.projectId ??
                     'Unknown'
                   }
-                  sessionTitle={sessionIdMatch.session.firstMessage ?? ''}
+                  sessionTitle={getSessionTitle(sessionIdMatch.session) ?? ''}
                   messageCount={sessionIdMatch.session.messageCount}
                   createdAt={sessionIdMatch.session.createdAt}
                   sessionId={query.trim()}
@@ -747,7 +748,7 @@ export const CommandPalette = (): React.JSX.Element | null => {
                   <SessionIdMatchItem
                     key={match.session.id}
                     projectName={projectNameByWorktreeId.get(match.projectId) ?? match.projectId}
-                    sessionTitle={match.session.firstMessage ?? ''}
+                    sessionTitle={getSessionTitle(match.session) ?? ''}
                     messageCount={match.session.messageCount}
                     createdAt={match.session.createdAt}
                     sessionId={match.session.id}

@@ -93,6 +93,8 @@ export interface Session {
   updatedAt?: number;
   /** First user message text (for preview) */
   firstMessage?: string;
+  /** Session title: session name (agent-name/custom-title) or Claude-generated ai-title */
+  customTitle?: string;
   /** Timestamp of first user message (RFC3339) */
   messageTimestamp?: string;
   /** Whether this session has subagents */

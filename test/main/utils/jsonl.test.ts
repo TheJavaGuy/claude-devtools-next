@@ -182,5 +182,114 @@ describe('jsonl', () => {
         }
       }
     });
+
+    describe('customTitle', () => {
+      const userLine = {
+        type: 'user',
+        uuid: 'u1',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        message: { role: 'user', content: 'hello world' },
+        isMeta: false,
+      };
+      const assistantLine = {
+        type: 'assistant',
+        uuid: 'a1',
+        timestamp: '2026-01-01T00:00:01.000Z',
+        message: { role: 'assistant', content: [{ type: 'text', text: 'hi' }] },
+      };
+
+      async function analyzeLines(lines: object[]) {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jsonl-title-'));
+        try {
+          const filePath = path.join(tempDir, 'session.jsonl');
+          const content = lines.map((line) => JSON.stringify(line)).join('\n');
+          fs.writeFileSync(filePath, `${content}\n`, 'utf8');
+          return await analyzeSessionFileMetadata(filePath);
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+      }
+
+      it('should use agent-name as title', async () => {
+        const result = await analyzeLines([
+          userLine,
+          { type: 'agent-name', agentName: 'my-rename', sessionId: 's1' },
+        ]);
+        expect(result.customTitle).toBe('my-rename');
+      });
+
+      it('should use custom-title as title', async () => {
+        const result = await analyzeLines([
+          userLine,
+          { type: 'custom-title', customTitle: 'Legacy rename', sessionId: 's1' },
+        ]);
+        expect(result.customTitle).toBe('Legacy rename');
+      });
+
+      it('should use ai-title when no user title exists', async () => {
+        const result = await analyzeLines([
+          userLine,
+          { type: 'ai-title', aiTitle: 'Generated title', sessionId: 's1' },
+        ]);
+        expect(result.customTitle).toBe('Generated title');
+      });
+
+      it('should prefer user title over ai-title regardless of line order', async () => {
+        const aiFirst = await analyzeLines([
+          { type: 'ai-title', aiTitle: 'Generated title' },
+          { type: 'agent-name', agentName: 'my-rename' },
+        ]);
+        const aiLast = await analyzeLines([
+          { type: 'agent-name', agentName: 'my-rename' },
+          { type: 'ai-title', aiTitle: 'Generated title' },
+        ]);
+        expect(aiFirst.customTitle).toBe('my-rename');
+        expect(aiLast.customTitle).toBe('my-rename');
+      });
+
+      it('should use the last of multiple renames', async () => {
+        const result = await analyzeLines([
+          { type: 'agent-name', agentName: 'first' },
+          { type: 'custom-title', customTitle: 'second' },
+          { type: 'agent-name', agentName: 'third' },
+        ]);
+        expect(result.customTitle).toBe('third');
+      });
+
+      it('should ignore empty and whitespace-only titles', async () => {
+        const result = await analyzeLines([
+          { type: 'ai-title', aiTitle: '  Generated title  ' },
+          { type: 'agent-name', agentName: 'my-rename' },
+          { type: 'agent-name', agentName: '   ' },
+          { type: 'custom-title', customTitle: '' },
+          { type: 'ai-title', aiTitle: ' ' },
+        ]);
+        expect(result.customTitle).toBe('my-rename');
+
+        const aiOnly = await analyzeLines([
+          { type: 'ai-title', aiTitle: '  Generated title  ' },
+          { type: 'agent-name', agentName: '   ' },
+        ]);
+        expect(aiOnly.customTitle).toBe('Generated title');
+      });
+
+      it('should return undefined when there are no title lines', async () => {
+        const result = await analyzeLines([userLine, assistantLine]);
+        expect(result.customTitle).toBeUndefined();
+      });
+
+      it('should not count title lines as messages', async () => {
+        const withoutTitles = await analyzeLines([userLine, assistantLine]);
+        const withTitles = await analyzeLines([
+          userLine,
+          { type: 'ai-title', aiTitle: 'Generated title' },
+          assistantLine,
+          { type: 'agent-name', agentName: 'my-rename' },
+        ]);
+        expect(withTitles.messageCount).toBe(withoutTitles.messageCount);
+        expect(withTitles.messageCount).toBe(2);
+        expect(withTitles.firstUserMessage?.text).toBe('hello world');
+      });
+    });
   });
 });

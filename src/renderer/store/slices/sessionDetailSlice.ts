@@ -4,7 +4,7 @@
 
 import { api } from '@renderer/api';
 import { asEnhancedChunkArray } from '@renderer/types/data';
-import { findTabBySession, truncateLabel } from '@renderer/types/tabs';
+import { truncateLabel } from '@renderer/types/tabs';
 import { processSessionClaudeMd } from '@renderer/utils/claudeMdTracker';
 import { processSessionContextWithPhases } from '@renderer/utils/contextTracker';
 import {
@@ -12,6 +12,7 @@ import {
   incrementalUpdateConversation,
   transformChunksToConversation,
 } from '@renderer/utils/groupTransformer';
+import { getSessionTitle } from '@renderer/utils/sessionTitle';
 import { createLogger } from '@shared/utils/logger';
 import { isSessionDetailUnchanged } from '@shared/utils/sessionDetailResponse';
 
@@ -52,7 +53,7 @@ import type {
   ContextStats,
   MentionedFileInfo,
 } from '@renderer/types/contextInjection';
-import type { ClaudeMdFileInfo, SessionDetail } from '@renderer/types/data';
+import type { ClaudeMdFileInfo, Session, SessionDetail } from '@renderer/types/data';
 import type { AIGroup, SessionConversation } from '@renderer/types/groups';
 import type { AgentConfig } from '@shared/types/api';
 import type { StateCreator } from 'zustand';
@@ -87,6 +88,29 @@ function createEmptyTabSessionData(): TabSessionData {
     visibleAIGroupId: null,
     selectedAIGroup: null,
   };
+}
+
+/**
+ * Apply the session's title as the label of every tab showing it, skipping
+ * tabs the user renamed by hand.
+ */
+function syncSessionTabLabels(
+  state: AppState,
+  sessionId: string,
+  session: Session | undefined
+): void {
+  const title = session ? getSessionTitle(session) : undefined;
+  const label = title ? truncateLabel(title) : `Session ${sessionId.slice(0, 8)}`;
+  for (const tab of getAllTabs(state.paneLayout)) {
+    if (
+      tab.type === 'session' &&
+      tab.sessionId === sessionId &&
+      !tab.labelSetByUser &&
+      tab.label !== label
+    ) {
+      state.updateTabLabel(tab.id, label);
+    }
+  }
 }
 
 // =============================================================================
@@ -262,12 +286,8 @@ export const createSessionDetailSlice: StateCreator<AppState, [], [], SessionDet
         });
         return;
       }
-      const existingTab = findTabBySession(currentState.openTabs, sessionId);
-      if (existingTab && detail) {
-        const newLabel = detail.session.firstMessage
-          ? truncateLabel(detail.session.firstMessage)
-          : `Session ${sessionId.slice(0, 8)}`;
-        currentState.updateTabLabel(existingTab.id, newLabel);
+      if (detail) {
+        syncSessionTabLabels(currentState, sessionId, detail.session);
       }
 
       // Phase 1 set: conversation renders immediately, stats are null (filled in Phase 2)
@@ -594,6 +614,10 @@ export const createSessionDetailSlice: StateCreator<AppState, [], [], SessionDet
       if (detail.fingerprint) {
         sessionFileFingerprint.set(refreshKey, detail.fingerprint);
       }
+
+      // Sync tab labels before the chunk-fingerprint early return: a session
+      // rename only appends a title entry, which doesn't change chunks.
+      syncSessionTabLabels(get(), sessionId, detail.session);
 
       // Transform chunks to conversation - validate with type guard
       const isOngoing = detail.session?.isOngoing ?? false;
