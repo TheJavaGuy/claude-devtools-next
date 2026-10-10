@@ -58,7 +58,7 @@ export interface TabSlice {
 
   // Per-tab UI state actions
   setTabContextPanelVisible: (tabId: string, visible: boolean) => void;
-  updateTabLabel: (tabId: string, label: string) => void;
+  updateTabLabel: (tabId: string, label: string, options?: { setByUser?: boolean }) => void;
 
   // Multi-select actions
   setSelectedTabIds: (ids: string[]) => void;
@@ -426,12 +426,13 @@ export const createTabSlice: StateCreator<AppState, [], [], TabSlice> = (set, ge
     set(syncFromLayout(newLayout));
   },
 
-  // Update a tab's label (used by sessionDetailSlice after fetching session data)
-  updateTabLabel: (tabId: string, label: string) => {
+  // Update a tab's label (session title sync, or a manual rename with setByUser)
+  updateTabLabel: (tabId: string, label: string, options?: { setByUser?: boolean }) => {
     const { paneLayout } = get();
     const newLayout = updateTabInLayout(paneLayout, tabId, (tab) => ({
       ...tab,
       label,
+      ...(options?.setByUser ? { labelSetByUser: true } : {}),
     }));
     set(syncFromLayout(newLayout));
   },

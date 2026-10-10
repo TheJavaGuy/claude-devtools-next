@@ -89,6 +89,9 @@ export interface Tab {
   /** Display name for the tab (max 50 chars) */
   label: string;
 
+  /** Whether the user renamed this tab; automatic session-title labels must not overwrite it */
+  labelSetByUser?: boolean;
+
   /** Unix timestamp when tab was opened */
   createdAt: number;
 

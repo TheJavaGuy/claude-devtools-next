@@ -8,6 +8,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useStore } from '@renderer/store';
+import { getSessionTitle } from '@renderer/utils/sessionTitle';
 import { formatTokensCompact } from '@shared/utils/tokenFormatting';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { EyeOff, MessageSquare, Pin } from 'lucide-react';
@@ -161,6 +162,9 @@ export const SessionItem = React.memo(function SessionItem({
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
+  const sessionTitle = getSessionTitle(session);
+  const sessionLabel = sessionTitle?.slice(0, 50) ?? 'Session';
+
   const handleClick = (event: React.MouseEvent): void => {
     if (!activeProjectId) return;
 
@@ -178,7 +182,7 @@ export const SessionItem = React.memo(function SessionItem({
         type: 'session',
         sessionId: session.id,
         projectId: activeProjectId,
-        label: session.firstMessage?.slice(0, 50) ?? 'Session',
+        label: sessionLabel,
       },
       forceNewTab ? { forceNewTab } : { replaceActiveTab: true }
     );
@@ -190,8 +194,6 @@ export const SessionItem = React.memo(function SessionItem({
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
-
-  const sessionLabel = session.firstMessage?.slice(0, 50) ?? 'Session';
 
   const handleOpenInCurrentPane = useCallback(() => {
     if (!activeProjectId) return;
@@ -271,7 +273,7 @@ export const SessionItem = React.memo(function SessionItem({
             className="truncate text-[13px] font-medium leading-tight"
             style={{ color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)' }}
           >
-            {session.firstMessage ?? 'Untitled'}
+            {sessionTitle ?? 'Untitled'}
           </span>
         </div>
 
